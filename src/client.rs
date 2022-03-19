@@ -10,11 +10,11 @@ impl subscriber::Server<::capnp::text::Owned> for SubscriberImpl {
     fn push_message(
         &mut self,
         params: subscriber::PushMessageParams<::capnp::text::Owned>,
-        results: subscriber::PushMessageResults<::capnp::text::Owned>,
+        _results: subscriber::PushMessageResults<::capnp::text::Owned>,
     ) -> Promise<(), capnp::Error> {
         println!(
             "message from publisher: {}",
-            pry!(pry!(params.get()).get_message())
+            pry!(pry!(params.get()).get_message()),
         );
         Promise::ok(())
     }
