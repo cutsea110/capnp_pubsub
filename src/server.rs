@@ -53,9 +53,9 @@ impl PublisherImpl {
         (
             PublisherImpl {
                 next_id: 0,
-                subscribers: subscribers.clone(),
+                subscribers: Rc::clone(&subscribers),
             },
-            subscribers.clone(),
+            Rc::clone(&subscribers),
         )
     }
 }
@@ -79,7 +79,7 @@ impl publisher::Server<::capnp::text::Owned> for PublisherImpl {
             .get()
             .set_subscription(capnp_rpc::new_client(SubscriptionImpl::new(
                 self.next_id,
-                self.subscribers.clone(),
+                Rc::clone(&self.subscribers),
             )));
 
         self.next_id += 1;
@@ -135,14 +135,14 @@ pub async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
             let send_to_subscribers = async move {
                 while let Some(()) = rx.next().await {
-                    let subscribers1 = subscribers.clone();
+                    let subscribers1 = Rc::clone(&subscribers);
                     let subs = &mut subscribers.borrow_mut().subscribers;
 		    for (&idx, mut subscriber) in subs.iter_mut() {
 			if subscriber.requests_in_flight < 5 {
 			    subscriber.requests_in_flight += 1;
 			    let mut request = subscriber.client.push_message_request();
 			    request.get().set_message(&format!("system time is: {:?}", ::std::time::SystemTime::now())[..])?;
-			    let subscribers2 = subscribers1.clone();
+			    let subscribers2 = Rc::clone(&subscribers1);
 			    tokio::task::spawn_local(Box::pin(request.send().promise.map(move |r| {
 				match r {
 				    Ok(_) => {
