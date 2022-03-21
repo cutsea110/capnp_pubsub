@@ -5,6 +5,8 @@ use std::{cell::RefCell, collections::HashMap, rc::Rc};
 
 use crate::pubsub_capnp::{publisher, subscriber, subscription};
 
+const MAX_CONN: i32 = 3;
+
 struct SubscriberHandle {
     client: subscriber::Client<::capnp::text::Owned>,
     requests_in_flight: i32,
@@ -135,7 +137,8 @@ pub async fn main() -> Result<(), Box<dyn std::error::Error>> {
                     let subscribers1 = Rc::clone(&subscribers);
                     let subs = &mut subscribers.borrow_mut().subscribers;
 		    for (&idx, mut subscriber) in subs.iter_mut() {
-			if subscriber.requests_in_flight < 5 {
+			if subscriber.requests_in_flight < MAX_CONN {
+			    println!("id: {}, requests_in_flight : {}", idx, subscriber.requests_in_flight);
 			    subscriber.requests_in_flight += 1;
 			    let mut request = subscriber.client.push_message_request();
 			    request.get().set_message(&format!("system time is: {:?}", ::std::time::SystemTime::now())[..])?;
