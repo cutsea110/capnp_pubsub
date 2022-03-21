@@ -48,15 +48,11 @@ struct PublisherImpl {
 }
 
 impl PublisherImpl {
-    pub fn new() -> (PublisherImpl, Rc<RefCell<SubscriberMap>>) {
-        let subscribers = Rc::new(RefCell::new(SubscriberMap::new()));
-        (
-            PublisherImpl {
-                next_id: 0,
-                subscribers: Rc::clone(&subscribers),
-            },
-            Rc::clone(&subscribers),
-        )
+    pub fn new() -> PublisherImpl {
+        PublisherImpl {
+            next_id: 0,
+            subscribers: Rc::new(RefCell::new(SubscriberMap::new())),
+        }
     }
 }
 
@@ -104,7 +100,8 @@ pub async fn main() -> Result<(), Box<dyn std::error::Error>> {
     tokio::task::LocalSet::new()
         .run_until(async move {
             let listener = tokio::net::TcpListener::bind(&addr).await?;
-            let (publisher_impl, subscribers) = PublisherImpl::new();
+            let publisher_impl = PublisherImpl::new();
+	    let subscribers = Rc::clone(&publisher_impl.subscribers);
             let publisher: publisher::Client<_> = capnp_rpc::new_client(publisher_impl);
 
             let handle_incoming = async move {
