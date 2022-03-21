@@ -4,7 +4,15 @@ use futures::AsyncReadExt;
 
 use crate::pubsub_capnp::{publisher, subscriber};
 
-struct SubscriberImpl;
+struct SubscriberImpl {
+    count: i32,
+}
+
+impl SubscriberImpl {
+    pub fn new() -> Self {
+        Self { count: 0 }
+    }
+}
 
 impl subscriber::Server<::capnp::text::Owned> for SubscriberImpl {
     fn push_message(
@@ -12,8 +20,10 @@ impl subscriber::Server<::capnp::text::Owned> for SubscriberImpl {
         params: subscriber::PushMessageParams<::capnp::text::Owned>,
         _results: subscriber::PushMessageResults<::capnp::text::Owned>,
     ) -> Promise<(), capnp::Error> {
+        self.count += 1;
         println!(
-            "message from publisher: {}",
+            "{}: message from publisher: {}",
+            self.count,
             pry!(pry!(params.get()).get_message()),
         );
         Promise::ok(())
@@ -22,6 +32,7 @@ impl subscriber::Server<::capnp::text::Owned> for SubscriberImpl {
 
 pub async fn main() -> Result<(), Box<dyn std::error::Error>> {
     use std::net::ToSocketAddrs;
+
     let args: Vec<String> = ::std::env::args().collect();
     if args.len() != 3 {
         println!("usage: {} client HOST:PORT", args[0]);
@@ -49,7 +60,7 @@ pub async fn main() -> Result<(), Box<dyn std::error::Error>> {
             let mut rpc_system = RpcSystem::new(rpc_network, None);
             let publisher: publisher::Client<::capnp::text::Owned> =
                 rpc_system.bootstrap(rpc_twoparty_capnp::Side::Server);
-            let sub = capnp_rpc::new_client(SubscriberImpl);
+            let sub = capnp_rpc::new_client(SubscriberImpl::new());
 
             let mut request = publisher.subscribe_request();
             request.get().set_subscriber(sub);
