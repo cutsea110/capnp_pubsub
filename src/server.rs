@@ -143,6 +143,9 @@ pub async fn main() -> Result<(), Box<dyn std::error::Error>> {
 			    tokio::task::spawn_local(Box::pin(request.send().promise.map(move |r| {
 				match r {
 				    Ok(_) => {
+					subscribers2.borrow_mut().subscribers.get_mut(&idx).map(|ref mut s| {
+					    s.requests_in_flight -= 1;
+					});
 				    },
 				    Err(e) => {
 					println!("Got error: {:?}. Dropping subscriber.", e);
