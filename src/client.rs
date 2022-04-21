@@ -1,6 +1,7 @@
 use capnp::capability::Promise;
 use capnp_rpc::{rpc_twoparty_capnp, twoparty, RpcSystem};
 use futures::AsyncReadExt;
+use std::error::Error;
 
 use crate::pubsub_capnp::{publisher, subscriber};
 
@@ -30,7 +31,7 @@ impl subscriber::Server<::capnp::text::Owned> for SubscriberImpl {
     }
 }
 
-pub async fn main() -> Result<(), Box<dyn std::error::Error>> {
+pub async fn main() -> Result<(), Box<dyn Error>> {
     use std::net::ToSocketAddrs;
 
     let args: Vec<String> = ::std::env::args().collect();

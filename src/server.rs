@@ -1,6 +1,7 @@
 use capnp::capability::Promise;
 use capnp_rpc::{rpc_twoparty_capnp, twoparty, RpcSystem};
 use futures::{AsyncReadExt, FutureExt, StreamExt};
+use std::error::Error;
 use std::{cell::RefCell, collections::HashMap, rc::Rc};
 
 use crate::pubsub_capnp::{publisher, subscriber, subscription};
@@ -85,7 +86,7 @@ impl publisher::Server<::capnp::text::Owned> for PublisherImpl {
     }
 }
 
-pub async fn main() -> Result<(), Box<dyn std::error::Error>> {
+pub async fn main() -> Result<(), Box<dyn Error>> {
     use std::net::ToSocketAddrs;
     let args: Vec<String> = ::std::env::args().collect();
     if args.len() != 3 {
@@ -159,7 +160,7 @@ pub async fn main() -> Result<(), Box<dyn std::error::Error>> {
 			}
 		    }
                 }
-		Ok::<(), Box<dyn std::error::Error>>(())
+		Ok::<(), Box<dyn Error>>(())
             };
 
 	    let _: (() , ()) = futures::future::try_join(handle_incoming, send_to_subscribers).await?;
