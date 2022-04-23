@@ -1,6 +1,7 @@
 use capnp::capability::Promise;
 use capnp_rpc::{rpc_twoparty_capnp, twoparty, RpcSystem};
 use futures::{AsyncReadExt, FutureExt, StreamExt};
+use log::{info, trace, warn};
 use std::error::Error;
 use std::{cell::RefCell, collections::HashMap, rc::Rc};
 
@@ -38,7 +39,7 @@ impl SubscriptionImpl {
 
 impl Drop for SubscriptionImpl {
     fn drop(&mut self) {
-        println!("subscription dropped");
+        trace!("subscription dropped");
         self.subscribers.borrow_mut().subscribers.remove(&self.id);
     }
 }
@@ -65,7 +66,7 @@ impl publisher::Server<::capnp::text::Owned> for PublisherImpl {
         params: publisher::SubscribeParams<::capnp::text::Owned>,
         mut results: publisher::SubscribeResults<::capnp::text::Owned>,
     ) -> Promise<(), capnp::Error> {
-        println!("subscribe");
+        info!("subscribe");
         self.subscribers.borrow_mut().subscribers.insert(
             self.next_id,
             SubscriberHandle {
@@ -102,6 +103,7 @@ pub async fn main() -> Result<(), Box<dyn Error>> {
 
     tokio::task::LocalSet::new()
         .run_until(async move {
+	    trace!("start task");
             let listener = tokio::net::TcpListener::bind(&addr).await?;
             let publisher_impl = PublisherImpl::new();
 	    let subscribers = Rc::clone(&publisher_impl.subscribers);
@@ -109,7 +111,9 @@ pub async fn main() -> Result<(), Box<dyn Error>> {
 
             let handle_incoming = async move {
                 loop {
+		    trace!("listening...");
                     let (stream, _) = listener.accept().await?;
+		    info!("accepted");
                     stream.set_nodelay(true)?;
                     let (reader, writer) =
                         tokio_util::compat::TokioAsyncReadCompatExt::compat(stream).split();
@@ -139,7 +143,7 @@ pub async fn main() -> Result<(), Box<dyn Error>> {
                     let subs = &mut subscribers.borrow_mut().subscribers;
 		    for (&idx, mut subscriber) in subs.iter_mut() {
 			if subscriber.requests_in_flight < MAX_CONN {
-			    println!("id: {}, requests_in_flight : {}", idx, subscriber.requests_in_flight);
+			    info!("id: {}, requests_in_flight : {}", idx, subscriber.requests_in_flight);
 			    subscriber.requests_in_flight += 1;
 			    let mut request = subscriber.client.push_message_request();
 			    request.get().set_message(&format!("system time is: {:?}", ::std::time::SystemTime::now())[..])?;
@@ -152,7 +156,7 @@ pub async fn main() -> Result<(), Box<dyn Error>> {
 					});
 				    },
 				    Err(e) => {
-					println!("Got error: {:?}. Dropping subscriber.", e);
+					warn!("Got error: {:?}. Dropping subscriber.", e);
 					subscribers2.borrow_mut().subscribers.remove(&idx);
 				    }
 				}

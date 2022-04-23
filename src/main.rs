@@ -1,3 +1,5 @@
+use env_logger::Env;
+
 #[macro_use]
 extern crate capnp_rpc;
 
@@ -10,6 +12,8 @@ pub mod server;
 
 #[tokio::main(flavor = "current_thread")]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    env_logger::Builder::from_env(Env::default().default_filter_or("warn")).init();
+
     let args: Vec<String> = ::std::env::args().collect();
     if args.len() >= 2 {
         match &args[1][..] {

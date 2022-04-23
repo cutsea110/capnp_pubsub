@@ -1,6 +1,7 @@
 use capnp::capability::Promise;
 use capnp_rpc::{rpc_twoparty_capnp, twoparty, RpcSystem};
 use futures::AsyncReadExt;
+use log::{info, trace};
 use std::error::Error;
 
 use crate::pubsub_capnp::{publisher, subscriber};
@@ -48,7 +49,9 @@ pub async fn main() -> Result<(), Box<dyn Error>> {
 
     tokio::task::LocalSet::new()
         .run_until(async move {
+            trace!("start");
             let stream = tokio::net::TcpStream::connect(&addr).await?;
+            info!("connected");
             stream.set_nodelay(true)?;
             let (reader, writer) =
                 tokio_util::compat::TokioAsyncReadCompatExt::compat(stream).split();
