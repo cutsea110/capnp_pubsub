@@ -103,7 +103,7 @@ pub async fn main() -> Result<(), Box<dyn Error>> {
 
     tokio::task::LocalSet::new()
         .run_until(async move {
-	    trace!("start task");
+	    trace!("start server");
             let listener = tokio::net::TcpListener::bind(&addr).await?;
             let publisher_impl = PublisherImpl::new();
 	    let subscribers = Rc::clone(&publisher_impl.subscribers);
