@@ -42,8 +42,7 @@ pub async fn main() -> Result<(), Box<dyn Error>> {
     }
 
     let addr = args[2]
-        .to_socket_addrs()
-        .unwrap()
+        .to_socket_addrs()?
         .next()
         .expect("could not parse address");
 
