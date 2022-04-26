@@ -102,17 +102,17 @@ pub async fn main() -> Result<(), Box<dyn Error>> {
 
     tokio::task::LocalSet::new()
         .run_until(async move {
-	    trace!("start server");
+            trace!("start server");
             let listener = tokio::net::TcpListener::bind(&addr).await?;
             let publisher_impl = PublisherImpl::new();
-	    let subscribers = Rc::clone(&publisher_impl.subscribers);
+            let subscribers = Rc::clone(&publisher_impl.subscribers);
             let publisher: publisher::Client<_> = capnp_rpc::new_client(publisher_impl);
 
             let handle_incoming = async move {
                 loop {
-		    trace!("listening...");
+                    trace!("listening...");
                     let (stream, _) = listener.accept().await?;
-		    info!("accepted");
+                    info!("accepted");
                     stream.set_nodelay(true)?;
                     let (reader, writer) =
                         tokio_util::compat::TokioAsyncReadCompatExt::compat(stream).split();
@@ -140,34 +140,43 @@ pub async fn main() -> Result<(), Box<dyn Error>> {
                 while let Some(()) = rx.next().await {
                     let subscribers1 = Rc::clone(&subscribers);
                     let subs = &mut subscribers.borrow_mut().subscribers;
-		    for (&idx, mut subscriber) in subs.iter_mut() {
-			if subscriber.requests_in_flight < MAX_CONN {
-			    info!("id: {}, requests_in_flight : {}", idx, subscriber.requests_in_flight);
-			    subscriber.requests_in_flight += 1;
-			    let mut request = subscriber.client.push_message_request();
-			    request.get().set_message(&format!("system time is: {:?}", ::std::time::SystemTime::now())[..])?;
-			    let subscribers2 = Rc::clone(&subscribers1);
-			    tokio::task::spawn_local(Box::pin(request.send().promise.map(move |r| {
-				match r {
-				    Ok(_) => {
-					subscribers2.borrow_mut().subscribers.get_mut(&idx).map(|ref mut s| {
-					    s.requests_in_flight -= 1;
-					});
-				    },
-				    Err(e) => {
-					warn!("Got error: {:?}. Dropping subscriber.", e);
-					subscribers2.borrow_mut().subscribers.remove(&idx);
-				    }
-				}
-			    })));
-			}
-		    }
+                    for (&idx, mut subscriber) in subs.iter_mut() {
+                        if subscriber.requests_in_flight < MAX_CONN {
+                            info!(
+                                "id: {}, requests_in_flight : {}",
+                                idx, subscriber.requests_in_flight
+                            );
+                            subscriber.requests_in_flight += 1;
+                            let mut request = subscriber.client.push_message_request();
+                            request.get().set_message(&format!(
+                                "system time is: {:?}",
+                                ::std::time::SystemTime::now()
+                            ))?;
+                            let subscribers2 = Rc::clone(&subscribers1);
+                            tokio::task::spawn_local(Box::pin(request.send().promise.map(
+                                move |r| match r {
+                                    Ok(_) => {
+                                        subscribers2.borrow_mut().subscribers.get_mut(&idx).map(
+                                            |ref mut s| {
+                                                s.requests_in_flight -= 1;
+                                            },
+                                        );
+                                    }
+                                    Err(e) => {
+                                        warn!("Got error: {:?}. Dropping subscriber.", e);
+                                        subscribers2.borrow_mut().subscribers.remove(&idx);
+                                    }
+                                },
+                            )));
+                        }
+                    }
                 }
-		Ok::<(), Box<dyn Error>>(())
+                Ok::<(), Box<dyn Error>>(())
             };
 
-	    let _: (() , ()) = futures::future::try_join(handle_incoming, send_to_subscribers).await?;
-	    Ok(())
+            let _: ((), ()) =
+                futures::future::try_join(handle_incoming, send_to_subscribers).await?;
+            Ok(())
         })
         .await
 }
