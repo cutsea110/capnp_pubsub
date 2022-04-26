@@ -19,8 +19,8 @@ struct SubscriberMap {
 }
 
 impl SubscriberMap {
-    fn new() -> SubscriberMap {
-        SubscriberMap {
+    fn new() -> Self {
+        Self {
             subscribers: HashMap::new(),
         }
     }
@@ -32,8 +32,8 @@ struct SubscriptionImpl {
 }
 
 impl SubscriptionImpl {
-    fn new(id: u64, subscribers: Rc<RefCell<SubscriberMap>>) -> SubscriptionImpl {
-        SubscriptionImpl { id, subscribers }
+    fn new(id: u64, subscribers: Rc<RefCell<SubscriberMap>>) -> Self {
+        Self { id, subscribers }
     }
 }
 
@@ -52,8 +52,8 @@ struct PublisherImpl {
 }
 
 impl PublisherImpl {
-    pub fn new() -> PublisherImpl {
-        PublisherImpl {
+    pub fn new() -> Self {
+        Self {
             next_id: 0,
             subscribers: Rc::new(RefCell::new(SubscriberMap::new())),
         }
@@ -75,12 +75,11 @@ impl publisher::Server<::capnp::text::Owned> for PublisherImpl {
             },
         );
 
-        results
-            .get()
-            .set_subscription(capnp_rpc::new_client(SubscriptionImpl::new(
-                self.next_id,
-                Rc::clone(&self.subscribers),
-            )));
+        let sub: subscription::Client = capnp_rpc::new_client(SubscriptionImpl::new(
+            self.next_id,
+            Rc::clone(&self.subscribers),
+        ));
+        results.get().set_subscription(sub);
 
         self.next_id += 1;
         Promise::ok(())

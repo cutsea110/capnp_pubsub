@@ -64,9 +64,9 @@ pub async fn main() -> Result<(), Box<dyn Error>> {
             let mut rpc_system = RpcSystem::new(rpc_network, None);
             let publisher: publisher::Client<::capnp::text::Owned> =
                 rpc_system.bootstrap(rpc_twoparty_capnp::Side::Server);
-            let sub = capnp_rpc::new_client(SubscriberImpl::new());
 
             let mut request = publisher.subscribe_request();
+            let sub = capnp_rpc::new_client(SubscriberImpl::new());
             request.get().set_subscriber(sub);
 
             futures::future::try_join(rpc_system, request.send().promise).await?;
