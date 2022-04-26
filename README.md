@@ -3,11 +3,11 @@
 * run server
 
 ```sh
-$ cargo run server 127.0.0.1:4000
+$ RUST_LOG=trace cargo run server 127.0.0.1:4000
 ```
 
 * run client
 
 ```sh
-$ cargo run client 127.0.0.1:4000
+$ RUST_LOG=trace cargo run client 127.0.0.1:4000
 ```
