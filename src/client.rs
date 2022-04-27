@@ -2,7 +2,7 @@ use capnp::capability::Promise;
 use capnp_rpc::{rpc_twoparty_capnp, twoparty, RpcSystem};
 use futures::AsyncReadExt;
 use log::{info, trace};
-use std::error::Error;
+use std::{error::Error, net::SocketAddr};
 
 use crate::pubsub_capnp::{publisher, subscriber};
 
@@ -46,30 +46,30 @@ pub async fn main() -> Result<(), Box<dyn Error>> {
         .next()
         .expect("could not parse address");
 
-    tokio::task::LocalSet::new()
-        .run_until(async move {
-            trace!("start");
-            let stream = tokio::net::TcpStream::connect(&addr).await?;
-            info!("connected");
-            stream.set_nodelay(true)?;
-            let (reader, writer) =
-                tokio_util::compat::TokioAsyncReadCompatExt::compat(stream).split();
-            let rpc_network = Box::new(twoparty::VatNetwork::new(
-                reader,
-                writer,
-                rpc_twoparty_capnp::Side::Client,
-                Default::default(),
-            ));
-            let mut rpc_system = RpcSystem::new(rpc_network, None);
-            let publisher: publisher::Client<::capnp::text::Owned> =
-                rpc_system.bootstrap(rpc_twoparty_capnp::Side::Server);
+    tokio::task::LocalSet::new().run_until(try_main(addr)).await
+}
 
-            let mut request = publisher.subscribe_request();
-            let sub = capnp_rpc::new_client(SubscriberImpl::new());
-            request.get().set_subscriber(sub);
+async fn try_main(addr: SocketAddr) -> Result<(), Box<dyn Error>> {
+    trace!("start");
+    let stream = tokio::net::TcpStream::connect(&addr).await?;
+    info!("connected");
+    stream.set_nodelay(true)?;
+    let (reader, writer) = tokio_util::compat::TokioAsyncReadCompatExt::compat(stream).split();
+    let rpc_network = Box::new(twoparty::VatNetwork::new(
+        reader,
+        writer,
+        rpc_twoparty_capnp::Side::Client,
+        Default::default(),
+    ));
+    let mut rpc_system = RpcSystem::new(rpc_network, None);
+    let publisher: publisher::Client<::capnp::text::Owned> =
+        rpc_system.bootstrap(rpc_twoparty_capnp::Side::Server);
 
-            futures::future::try_join(rpc_system, request.send().promise).await?;
-            Ok(())
-        })
-        .await
+    let mut request = publisher.subscribe_request();
+    let sub = capnp_rpc::new_client(SubscriberImpl::new());
+    request.get().set_subscriber(sub);
+
+    futures::future::try_join(rpc_system, request.send().promise).await?;
+
+    Ok(())
 }

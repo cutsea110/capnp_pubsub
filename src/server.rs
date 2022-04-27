@@ -96,8 +96,7 @@ pub async fn main() -> Result<(), Box<dyn Error>> {
     }
 
     let addr = args[2]
-        .to_socket_addrs()
-        .unwrap()
+        .to_socket_addrs()?
         .next()
         .expect("could not parse address");
 
@@ -119,13 +118,13 @@ async fn try_main(addr: SocketAddr) -> Result<(), Box<dyn Error>> {
             stream.set_nodelay(true)?;
             let (reader, writer) =
                 tokio_util::compat::TokioAsyncReadCompatExt::compat(stream).split();
-            let network = twoparty::VatNetwork::new(
+            let rpc_network = Box::new(twoparty::VatNetwork::new(
                 reader,
                 writer,
                 rpc_twoparty_capnp::Side::Server,
                 Default::default(),
-            );
-            let rpc_system = RpcSystem::new(Box::new(network), Some(publisher.clone().client));
+            ));
+            let rpc_system = RpcSystem::new(rpc_network, Some(publisher.clone().client));
 
             tokio::task::spawn_local(Box::pin(rpc_system.map(|_| ())));
         }
@@ -149,6 +148,10 @@ async fn try_main(addr: SocketAddr) -> Result<(), Box<dyn Error>> {
                         idx, subscriber.requests_in_flight
                     );
                     subscriber.requests_in_flight += 1;
+                    trace!(
+                        "Increment: request_in_flight: {}",
+                        subscriber.requests_in_flight
+                    );
                     let mut request = subscriber.client.push_message_request();
                     request.get().set_message(&format!(
                         "system time is: {:?}",
@@ -161,6 +164,10 @@ async fn try_main(addr: SocketAddr) -> Result<(), Box<dyn Error>> {
                                 subscribers2.borrow_mut().subscribers.get_mut(&idx).map(
                                     |ref mut s| {
                                         s.requests_in_flight -= 1;
+                                        trace!(
+                                            "Decrement: request_in_flight: {}",
+                                            s.requests_in_flight
+                                        );
                                     },
                                 );
                             }
